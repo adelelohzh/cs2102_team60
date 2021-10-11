@@ -1,0 +1,1 @@
+--SQL Command to create application database schema--
