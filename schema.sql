@@ -89,7 +89,12 @@ CREATE TABLE Located_In (
 );
 
 CREATE TABLE Joins (
-    eid INTEGER REFERENCES Employees room VARCHAR(10) NOT NULL floor INTEGER NOT NULL time VARCHAR(5) NOT NULL date DATE NOT NULL PRIMARY KEY (eid, room, floor, time, date),
+    eid INTEGER REFERENCES Employees,
+    room VARCHAR(10) NOT NULL, 
+    floor INTEGER NOT NULL,
+    time VARCHAR(5) NOT NULL,
+    date DATE NOT NULL,
+    PRIMARY KEY (eid, room, floor, time, date),
     FOREIGN KEY (room) REFERENCES Sessions (room) ON DELETE CASCADE,
     FOREIGN KEY (floor) REFERENCES Sessions (floor) ON DELETE CASCADE,
     FOREIGN KEY (time) REFERENCES Sessions (time) ON DELETE CASCADE,
