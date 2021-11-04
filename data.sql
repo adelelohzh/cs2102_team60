@@ -83,7 +83,7 @@ INSERT INTO Employees (eid, ename, email, contact, resigned_date) VALUES
 (79, 'Rockey Della Scala', 'rdella26@cscompany.com', '5317988081', NULL),
 (80, 'Pierrette Febry', 'pfebry27@cscompany.com', '4649531357', NULL);
 
---Junior (56)
+--Junior (49)
 INSERT INTO Junior (eid) VALUES
 (4), (5), (6), (7), (8), (9), (10),
 (14), (15), (16), (17), (18), (19), (20),
@@ -155,17 +155,17 @@ INSERT INTO Meeting_Rooms (room, floor, rname) VALUES
 
 --Sessions (11)
 INSERT INTO Sessions (room, floor, time, date) VALUES
-(1, 20, 9, '2021-11-10'),
-(1, 20, 10, '2021-11-10'),
-(2, 3, 9, '2021-11-11'),
-(5, 10, 13, '2021-11-12'),
-(5, 10, 13, '2021-12-16'),
-(5, 10, 14, '2021-12-16'),
-(4, 2, 11, '2021-12-23'),
-(5, 13, 9, '2021-12-24'),
-(5, 13, 9, '2021-12-25'),
-(3, 10, 9, '2021-12-25'),
-(9, 12, 9, '2021-12-26');
+(1, 1, 9, '2021-11-10'),
+(1, 1, 10, '2021-11-10'),
+(3, 1, 9, '2021-11-11'),
+(1, 2, 13, '2021-11-12'),
+(3, 3, 13, '2021-12-16'),
+(3, 3, 14, '2021-12-16'),
+(2, 4, 11, '2021-12-23'),
+(3, 5, 9, '2021-12-24'),
+(2, 6, 9, '2021-12-25'),
+(1, 1, 9, '2021-12-25'),
+(3, 8, 9, '2021-12-26');
 
 --Health Declarations (149)
 INSERT INTO Health_Declaration (eid, date, temp, fever) VALUES
@@ -284,9 +284,9 @@ INSERT INTO Health_Declaration (eid, date, temp, fever) VALUES
 (33, '2021-11-11', 35.9, FALSE),
 (34, '2021-11-11', 37.4, FALSE),
 (35, '2021-11-11', 36.5, FALSE),
-(36, '2021-11-11'', 35.5, FALSE),
+(36, '2021-11-11', 35.5, FALSE),
 (37, '2021-11-11', 36.6, FALSE),
-(38, '2021-11-11'', 35.9, FALSE),
+(38, '2021-11-11', 35.9, FALSE),
 (39, '2021-11-11', 39.5, TRUE),
 (40, '2021-11-11', 37.9, TRUE),
 (41, '2021-11-11', 38.6, TRUE),
@@ -457,83 +457,87 @@ INSERT INTO Updates (date, new_cap, room, floor, eid) VALUES
 ('2021-10-15', 4, 2, 8, 71),
 ('2021-10-15', 4, 3, 8, 71);
 
---Approves (First 6 Books)
+--Approves (First 10 Books)
 INSERT INTO Approves(eid, room, floor, time, date) VALUES 
-(1, 1, 1, 9, '2021-10-15'),
-(1, 2, 1, 10, '2021-10-15'),
-(1, 3, 1, 9, '2021-10-15'),
-(11, 1, 2, 13, '2021-10-15'),
-(21, 3, 3, 13, '2021-10-16'),
-(31, 1, 4, 14, '2021-10-16');
+(1, 1, 1, 9, '2021-11-10'),
+(2, 1, 1, 10, '2021-11-10'),
+(3, 3, 1, 9, '2021-11-11'),
+(11, 1, 2, 13, '2021-11-12'),
+(21, 3, 3, 13, '2021-12-16'),
+(32, 3, 3, 14, '2021-12-16'),
+(33, 2, 4, 11, '2021-12-23'),
+(43, 3, 5, 9, '2021-12-24'),
+(52, 2, 6, 9, '2021-12-25'),
+(61, 1, 1, 9, '2021-12-25');
 
 --Books (11)
 INSERT INTO Books(eid, room, floor, time, date) VALUES 
-(1, 1, 1, 9, '2021-10-15'),
-(2, 2, 1, 10, '2021-10-15'),
-(3, 3, 1, 9, '2021-10-15'),
-(11, 1, 2, 13, '2021-10-15'),
-(21, 3, 3, 13, '2021-10-16'),
-(32, 1, 4, 14, '2021-10-16'),
-(33, 2, 4, 11, '2021-10-23'),
-(43, 3, 5, 9, '2021-10-24'),
-(52, 2, 6, 9, '2021-10-25'),
-(61, 1, 7, 9, '2021-10-25'),
-(72, 3, 8, 9, '2021-10-26');
+(1, 1, 1, 9, '2021-11-10'),
+(2, 1, 1, 10, '2021-11-10'),
+(3, 3, 1, 9, '2021-11-11'),
+(11, 1, 2, 13, '2021-11-12'),
+(21, 3, 3, 13, '2021-12-16'),
+(32, 3, 3, 14, '2021-12-16'),
+(33, 2, 4, 11, '2021-12-23'),
+(43, 3, 5, 9, '2021-12-24'),
+(52, 2, 6, 9, '2021-12-25'),
+(61, 1, 1, 9, '2021-12-25'),
+(72, 3, 8, 9, '2021-12-26');
 
 --Joins (46 rows)
---Finance people joining all three rooms
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (1, 1, 1, 9, '2021-10-15');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (4, 1, 1, 9, '2021-10-15');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (5, 1, 1, 9, '2021-10-15');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (6, 1, 1, 9, '2021-10-15');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (2, 2, 1, 10, '2021-10-15');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (7, 2, 1, 10, '2021-10-15');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (3, 3, 1, 9, '2021-10-15');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (8, 3, 1, 9, '2021-10-15');
-
---HR joining one room
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (11, 1, 2, 13, '2021-10-15');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (12, 1, 2, 13, '2021-10-15');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (13, 1, 2, 13, '2021-10-15');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (14, 1, 2, 13, '2021-10-15');
-
---Department 3 joining 1 room
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (21, 3, 3, 13, '2021-10-16');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (23, 3, 3, 13, '2021-10-16');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (25, 3, 3, 13, '2021-10-16');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (28, 3, 3, 13, '2021-10-16');
-
---Department 4 joining 2 rooms
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (32, 1, 4, 14, '2021-10-16');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (31, 1, 4, 14, '2021-10-16');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (35, 1, 4, 14, '2021-10-16');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (34, 1, 4, 14, '2021-10-16');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (33, 2, 4, 11, '2021-10-23');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (37, 2, 4, 11, '2021-10-23');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (38, 2, 4, 11, '2021-10-23');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (1, 1, 1, 9, '2021-11-10');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (2, 1, 1, 9, '2021-11-10');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (3, 1, 1, 9, '2021-11-10');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (4, 1, 1, 9, '2021-11-10');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (5, 1, 1, 9, '2021-11-10');
  
---Department 5 joining 1 room
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (43, 3, 5, 9, '2021-10-24');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (44, 3, 5, 9, '2021-10-24');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (45, 3, 5, 9, '2021-10-24');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (46, 3, 5, 9, '2021-10-24');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (1, 1, 1, 10, '2021-11-10');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (2, 1, 1, 10, '2021-11-10');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (3, 1, 1, 10, '2021-11-10');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (4, 1, 1, 10, '2021-11-10');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (5, 1, 1, 10, '2021-11-10');
  
---Department 6 joining 1 room
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (52, 2, 6, 9, '2021-10-25');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (53, 2, 6, 9, '2021-10-25');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (54, 2, 6, 9, '2021-10-25');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (55, 2, 6, 9, '2021-10-25');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (32, 3, 1, 9, '2021-11-11');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (31, 3, 1, 9, '2021-11-11');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (39, 3, 1, 9, '2021-11-11');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (2, 3, 1, 9, '2021-11-11');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (3, 3, 1, 9, '2021-11-11');
  
---Department 7 joining 1 room
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (61, 1, 7, 9, '2021-10-25');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (62, 1, 7, 9, '2021-10-25');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (63, 1, 7, 9, '2021-10-25');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (64, 1, 7, 9, '2021-10-25');
-
---Department 8 joining 1 room after change in capacity
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (72, 3, 8, 9, '2021-10-26');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (71, 3, 8, 9, '2021-10-26');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (73, 3, 8, 9, '2021-10-26');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (74, 3, 8, 9, '2021-10-26');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (75, 3, 8, 9, '2021-10-26');
-INSERT INTO Joins (eid, room, floor, time, date) VALUES (76, 3, 8, 9, '2021-10-26');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (11, 1, 2, 13, '2021-11-12');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (17, 1, 2, 13, '2021-11-12');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (28, 1, 2, 13, '2021-11-12');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (33, 1, 2, 13, '2021-11-12');
+ 
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (1, 3, 3, 13, '2021-12-16');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (4, 3, 3, 13, '2021-12-16');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (44, 3, 3, 13, '2021-12-16');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (6, 3, 3, 13, '2021-12-16');
+ 
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (1, 3, 3, 14, '2021-12-16');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (4, 3, 3, 14, '2021-12-16');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (44, 3, 3, 14, '2021-12-16');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (6,  3, 3, 14, '2021-12-16');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (50, 3, 3, 14, '2021-12-16');
+ 
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (12, 2, 4, 11, '2021-12-23');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (15, 2, 4, 11, '2021-12-23');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (25, 2, 4, 11, '2021-12-23');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (29, 2, 4, 11, '2021-12-23');
+ 
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (41, 3, 5, 9, '2021-12-24');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (40, 3, 5, 9, '2021-12-24');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (50, 3, 5, 9, '2021-12-24');
+ 
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (42, 2, 6, 9, '2021-12-25');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (8, 2, 6, 9, '2021-12-25');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (32, 2, 6, 9, '2021-12-25');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (33, 2, 6, 9, '2021-12-25');
+ 
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (62, 1, 1, 9, '2021-12-25');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (60, 1, 1, 9, '2021-12-25');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (37, 1, 1, 9, '2021-12-25');
+ 
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (72, 3, 8, 9, '2021-12-26');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (71, 3, 8, 9, '2021-12-26');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (19, 3, 8, 9, '2021-12-26');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (63, 3, 8, 9, '2021-12-26');

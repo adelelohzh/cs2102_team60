@@ -780,7 +780,6 @@ BEFORE INSERT ON Approves
 FOR EACH ROW EXECUTE FUNCTION check_if_resigned();
 
 
- 
 CREATE OR REPLACE FUNCTION check_non_compliance() RETURNS TRIGGER 
 AS $$
 DECLARE
@@ -792,8 +791,7 @@ BEGIN
     INTO employeeId;
  
     IF (employeeId != -1) THEN
-RAISE EXCEPTION ‘You must complete health declaration before joining/booking/approving a room!”
-RETURN NULL;
+RAISE EXCEPTION 'You must complete health declaration before joining/booking/approving a room!'
 ELSE
     RETURN NEW;
 END IF;

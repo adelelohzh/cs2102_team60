@@ -19,7 +19,7 @@ CREATE TABLE Employees (
     eid INTEGER,
     ename TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
-    contact VARCHAR(100) NOT NULL,
+    contact VARCHAR(100) UNIQUE NOT NULL,
     resigned_date DATE,
     PRIMARY KEY (eid)
 );
@@ -71,7 +71,7 @@ CREATE TABLE Sessions (
     FOREIGN KEY (room, floor) REFERENCES Meeting_Rooms (room, floor) ON DELETE CASCADE
 );
 
-CREATE TABLE Works_In(
+CREATE TABLE Works_In (
     eid INTEGER REFERENCES Employees,
     did INTEGER NOT NULL,
     PRIMARY KEY (eid),
