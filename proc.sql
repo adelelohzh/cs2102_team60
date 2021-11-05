@@ -501,6 +501,51 @@ $$ LANGUAGE plpgsql;
 
 -- Triggers
 
+--Check if booking is approved
+CREATE OR REPLACE FUNCTION check_if_approved() RETURNS TRIGGER 
+AS $$
+DECLARE
+    managerEid INT := -1;
+BEGIN
+    IF (TG_OP = 'DELETE') THEN
+        SELECT eid
+        FROM Approves
+        WHERE room = OLD.room
+        AND floor = OLD.floor
+        AND date = OLD.date
+        AND time = OLD.time
+        INTO managerEid;
+      
+        IF (managerEid != -1) THEN
+        RAISE EXCEPTION 'Cannot join or leave approved meeting';
+            RETURN NULL;
+        ELSE
+            RETURN OLD;
+        END IF;
+    ELSE
+        SELECT eid
+        FROM Approves
+        WHERE room = NEW.room
+        AND floor = NEW.floor
+        AND date = NEW.date
+        AND time = NEW.time
+        INTO managerEid;
+      
+        IF (managerEid != -1) THEN
+            RAISE EXCEPTION 'Cannot join or leave approved meeting';
+            RETURN NULL;
+        ELSE
+            RETURN NEW;
+        END IF;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER check_if_approved
+BEFORE INSERT OR UPDATE OR DELETE ON Joins
+FOR EACH ROW EXECUTE FUNCTION check_if_approved();
+
+
 -- Add Health Declaration
 CREATE OR REPLACE FUNCTION add_health() RETURNS TRIGGER 
 AS $$
