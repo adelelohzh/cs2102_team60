@@ -85,7 +85,7 @@ BEGIN
     INTO employee_id;
 
     employee_id := employee_id + 1;
-    newEmail := ename || employee_id || '@cscompany.com';
+    newEmail := REPLACE(ename, ' ', '_') || employee_id || '@cscompany.com';
 
     IF EXISTS(SELECT 1 FROM Departments d WHERE d.did = department_id) THEN
         INSERT INTO Employees (eid, ename, email, contact, resigned_date)
