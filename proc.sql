@@ -179,73 +179,90 @@ $$ LANGUAGE plpgsql;
 DROP PROCEDURE IF EXISTS book_room;
 CREATE OR REPLACE PROCEDURE book_room(room_num INT, floor_num INT, book_date DATE, start_hour INT, end_hour INT, booker_eid INT)
 AS $$
-    DECLARE booker_temp FLOAT := 0 ;
+    DECLARE booker_temp FLOAT := 0; start_hr INT := start_hour; resigned_dt DATE;
 BEGIN
     SELECT h.temp FROM Health_Declaration h 
     WHERE (h.eid = booker_eid AND h.date = book_date) INTO booker_temp;
-    IF (SELECT EXISTS (SELECT 1 FROM Sessions s WHERE s.floor = floor_num AND s.room = room_num AND s.date = book_date AND s.time::INT = start_hour::INT)) THEN
-        IF (SELECT EXISTS(SELECT 1 FROM Approves a WHERE a.floor = floor_num AND a.room = room_num AND a.date = book_date AND a.time::INT = start_hour::INT)) THEN
-            RAISE EXCEPTION 'Session already exists';
-        ELSE
-            DELETE FROM Sessions s WHERE (s.floor = floor_num AND s.room = room_num AND s.date = book_date AND s.time::INT = start_hour::INT);
-            IF (SELECT EXISTS (SELECT 1 FROM Junior j where j.eid = booker_eid)) THEN
-                RAISE EXCEPTION 'Juniors cannot make bookings';
-            ELSE
-                SELECT h.temp into booker_temp FROM Health_Declaration h WHERE h.eid = booker_eid and h.date = CURRENT_DATE;
-                IF (booker_temp >= 37.6) THEN
-                    RAISE EXCEPTION 'You cannot make a booking with a fever';
-                ELSE
-                    INSERT INTO Sessions(room, floor, time, date)
-                    VALUES (room_num, floor_num, start_hour, book_date);
-
-                    INSERT INTO Joins(eid, room, floor, time, date)
-                    VALUES (booker_eid, room_num, floor_num, start_hour, book_date);
-
-                   INSERT INTO Books(eid, room, floor, time, date)
-                   VALUES (booker_eid, room_num, floor_num, start_hour, book_date);
-
-                   INSERT INTO Joins(eid, room, floor, time, date)
-                   VALUES (booker_eid, room_num, floor_num, start_hour, book_date);
-                END IF;
-            END IF;
-        END IF;
+    SELECT e.resigned_date FROM Employees e 
+    WHERE e.eid = booker_eid INTO resigned_dt;
+    IF (booker_temp >= 37.6) THEN
+      RAISE EXCEPTION 'You cannot make a booking with a fever';
     ELSE
-        IF (SELECT EXISTS (SELECT 1 FROM Junior j where j.eid = booker_eid)) THEN
-            RAISE EXCEPTION 'Juniors cannot make bookings';
-        ELSE
-            SELECT h.temp into booker_temp FROM Health_Declaration h WHERE h.eid = booker_eid and h.date = book_date;
-            IF (booker_temp >= 37.6) THEN
-                RAISE EXCEPTION 'You cannot make a booking with a fever';
-            ELSE
+      IF (SELECT EXISTS (SELECT 1 FROM Junior j where j.eid = booker_eid)) THEN
+        RAISE EXCEPTION 'Juniors cannot make bookings';
+      ELSIF (resigned_dt IS NOT NULL AND resigned_dt < book_date) THEN
+        RAISE EXCEPTION 'You cannot make bookings as your resignation date is earlier than booking date!';
+      ELSE
+        WHILE (end_hour > start_hr) LOOP
+            IF (SELECT EXISTS (SELECT 1 FROM Sessions s WHERE s.floor = floor_num AND s.room = room_num AND s.date = book_date AND s.time::INT = start_hr::INT)) THEN
+              IF (SELECT EXISTS(SELECT 1 FROM Approves a WHERE a.floor = floor_num AND a.room = room_num AND a.date = book_date AND a.time::INT = start_hr::INT)) THEN
+                RAISE NOTICE 'Session already exists and has been approved';
+                SELECT start_hr + 1 INTO start_hr;
+              ELSE
+                DELETE FROM Sessions s WHERE (s.floor = floor_num AND s.room = room_num AND s.date = book_date AND s.time::INT = start_hr::INT);
                 INSERT INTO Sessions(room, floor, time, date)
-                VALUES (room_num, floor_num, start_hour, book_date);
+                VALUES (room_num, floor_num, start_hr, book_date);
 
                 INSERT INTO Books(eid, room, floor, time, date)
-                VALUES (booker_eid, room_num, floor_num, start_hour, book_date);
+                VALUES (booker_eid, room_num, floor_num, start_hr, book_date);
 
                 INSERT INTO Joins(eid, room, floor, time, date)
-                VALUES (booker_eid, room_num, floor_num, start_hour, book_date);
+                VALUES (booker_eid, room_num, floor_num, start_hr, book_date);
+
+                SELECT start_hr + 1 INTO start_hr;
+              END IF;
+            ELSE
+              INSERT INTO Sessions(room, floor, time, date)
+              VALUES (room_num, floor_num, start_hr, book_date);
+
+              INSERT INTO Books(eid, room, floor, time, date)
+              VALUES (booker_eid, room_num, floor_num, start_hr, book_date);
+
+              INSERT INTO Joins(eid, room, floor, time, date)
+              VALUES (booker_eid, room_num, floor_num, start_hr, book_date);
+
+              SELECT start_hr + 1 INTO start_hr;
+
             END IF;
-        END IF;
+        END LOOP;
+      END IF;
     END IF;
-END
+END;
 $$ LANGUAGE plpgsql;
 
 --3. unbook_room
 DROP PROCEDURE IF EXISTS unbook_room;
-CREATE OR REPLACE PROCEDURE unbook_room(floor_num INT, room_num INT, book_date DATE, start_hour INT, end_hour INT, input_eid INT)
+CREATE OR REPLACE PROCEDURE unbook_room(room_num INT, floor_num INT, book_date DATE, start_hour INT, end_hour INT, input_eid INT)
 AS $$
-    DECLARE e_id INT := -1;
+    DECLARE e_id INT := -1; start_hr INT := start_hour;
 BEGIN
-    IF (SELECT EXISTS (SELECT 1 FROM Sessions s WHERE s.floor = floor_num AND s.room = room_num AND s.date = book_date AND s.time::INT = start_hour::INT)) THEN
-        SELECT b.eid INTO e_id FROM Books b WHERE b.floor = floor_num AND b.room = room_num AND b.date = book_date AND b.time::INT = start_hour::INT;
+    IF (SELECT EXISTS (SELECT 1 FROM Sessions s WHERE s.floor = floor_num AND s.room = room_num AND s.date = book_date AND s.time::INT = start_hr::INT)) THEN
+        SELECT b.eid INTO e_id FROM Books b WHERE b.floor = floor_num AND b.room = room_num AND b.date = book_date AND b.time::INT = start_hr::INT;
         IF (e_id != input_eid) THEN
-            RAISE EXCEPTION 'You can only delete your own bookings!';
+          RAISE EXCEPTION 'You can only delete your own bookings!';
         ELSE
-            DELETE FROM Sessions s WHERE s.room = room_num AND s.floor = floor_num AND s.time = start_hour AND s.date = book_date;
+          WHILE (start_hr < end_hour) LOOP
+            IF (SELECT EXISTS (SELECT 1 FROM Sessions s WHERE s.floor = floor_num AND s.room = room_num AND s.date = book_date AND s.time::INT = start_hr::INT)) THEN
+              DELETE FROM Sessions s WHERE s.room = room_num AND s.floor = floor_num AND s.time = start_hr AND s.date = book_date;
+              SELECT start_hr + 1 INTO start_hr;
+              RAISE NOTICE 'Room unbooked';
+            ELSE
+              RAISE NOTICE 'Session does not exist!';
+              SELECT start_hr + 1 INTO start_hr;
+            END IF;
+          END LOOP;
         END IF;
     ELSE
-        RAISE EXCEPTION 'No such session exists.';
+      WHILE (start_hr < end_hour) LOOP
+        IF (SELECT EXISTS (SELECT 1 FROM Sessions s WHERE s.floor = floor_num AND s.room = room_num AND s.date = book_date AND s.time::INT = start_hr::INT)) THEN
+          DELETE FROM Sessions s WHERE s.room = room_num AND s.floor = floor_num AND s.time = start_hr AND s.date = book_date;
+          RAISE NOTICE 'Room unbooked';
+          SELECT start_hr + 1 INTO start_hr;
+        ELSE
+          RAISE NOTICE 'Session does not exist!';
+          SELECT start_hr + 1 INTO start_hr;
+        END IF;
+      END LOOP;
     END IF;
 END;
 $$ LANGUAGE plpgsql;
@@ -253,32 +270,54 @@ $$ LANGUAGE plpgsql;
 --4. join_meeting
 DROP PROCEDURE IF EXISTS join_meeting;
 CREATE OR REPLACE PROCEDURE join_meeting(
-    floorNumber INTEGER, 
-    roomNumber INTEGER, 
-    meetingDate DATE, 
-    startHour INTEGER,
-    endHour INTEGER, 
-    employeeId INTEGER) 
+   floorNumber INTEGER,
+   roomNumber INTEGER,
+   meetingDate DATE,
+   startHour INTEGER,
+   endHour INTEGER,
+   employeeId INTEGER)
 AS $$
+DECLARE
+   hasFever BOOLEAN := false;
+   resignedDate DATE := NULL;
 BEGIN
-    WHILE startHour != endHour LOOP
-        IF (
-            EXISTS (SELECT 1 FROM Sessions s WHERE s.room = roomNumber AND s.floor = floorNumber AND s.time = startHour AND s.date = meetingDate) AND
-            EXISTS (SELECT 1 FROM Joins j WHERE j.room = roomNumber AND j.floor = floorNumber AND j.time = startHour AND j.date = meetingDate AND j.eid = employeeId)
-            ) THEN
-            RAISE EXCEPTION 'You have already joined this meeting';
-        ELSIF (EXISTS (SELECT 1 FROM Sessions s WHERE s.room = roomNumber AND s.floor = floorNumber AND s.time = startHour AND s.date = meetingDate)) THEN
-            INSERT INTO Joins(eid,room,floor,time,date) VALUES (employeeId, roomNumber, floorNumber, startHour, meetingDate);
-        ELSE
-            RAISE EXCEPTION 'Session does not exist!';
-        END IF;
-      
-        IF startHour = 23 THEN
-            startHour := 0;
-        ELSE
-            startHour := startHour + 1;
-        END IF;
-    END LOOP;
+  SELECT fever
+  FROM Health_Declaration
+  WHERE eid = employeeId
+  AND date = meetingDate
+  INTO hasFever;
+ 
+   SELECT resigned_date
+   FROM Employees
+   WHERE eid = employeeId
+   INTO resignedDate;
+ 
+IF (hasFever IS FALSE) THEN
+   IF (resignedDate < meetingDate) THEN
+   WHILE startHour != endHour LOOP
+       IF (
+           EXISTS (SELECT 1 FROM Sessions s WHERE s.room = roomNumber AND s.floor = floorNumber AND s.time = startHour AND s.date = meetingDate) AND
+           EXISTS (SELECT 1 FROM Joins j WHERE j.room = roomNumber AND j.floor = floorNumber AND j.time = startHour AND j.date = meetingDate AND j.eid = employeeId)
+           ) THEN
+           RAISE EXCEPTION 'You have already joined this meeting';
+       ELSIF (EXISTS (SELECT 1 FROM Sessions s WHERE s.room = roomNumber AND s.floor = floorNumber AND s.time = startHour AND s.date = meetingDate)) THEN
+           INSERT INTO Joins(eid,room,floor,time,date) VALUES (employeeId, roomNumber, floorNumber, startHour, meetingDate);
+       ELSE
+           RAISE EXCEPTION 'Session does not exists!';
+       END IF;
+ 
+       IF startHour = 23 THEN
+           startHour := 0;
+       ELSE
+           startHour := startHour + 1;
+       END IF;
+   END LOOP;
+   ELSE
+       RAISE EXCEPTION 'Resigned employees cannot join meetings';
+   END IF;
+ELSE
+   RAISE EXCEPTION 'Cannot join meetings with a fever!';
+END IF;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -322,82 +361,109 @@ $$ LANGUAGE plpgsql;
 --6. approve_meeting
 DROP PROCEDURE IF EXISTS approve_meeting;
 CREATE OR REPLACE PROCEDURE approve_meeting(
-    floorNumber INTEGER, 
-    roomNumber INTEGER, 
-    meetingDate DATE, 
-    startHour INTEGER, 
-    endHour INTEGER, 
-    managerId INTEGER) 
+   floorNumber INTEGER,
+   roomNumber INTEGER,
+   meetingDate DATE,
+   startHour INTEGER,
+   endHour INTEGER,
+   managerId INTEGER)
 AS $$
+DECLARE
+   resignedDate DATE := NULL;
 BEGIN
-    WHILE startHour != endHour LOOP
-        IF (EXISTS (SELECT 1 FROM Sessions s WHERE s.room = roomNumber AND s.floor = floorNumber AND s.time = startHour AND s.date = meetingDate)) THEN
-            IF EXISTS (SELECT 1 FROM Approves a WHERE a.room = roomNumber AND a.floor = floorNumber AND a.time = startHour AND a.date = meetingDate) THEN
-                RAISE EXCEPTION 'Meeting already approved';
-            ELSE
-                INSERT INTO Approves (eid, room, floor, time, date) 
-                VALUES (managerId, roomNumber,floorNumber,startHour,meetingDate);
-            END IF;
-          
-            IF startHour = 23 THEN
-                startHour := 0;
-            ELSE
-                startHour := startHour + 1;
-            END IF; 
-        ELSE
-            RAISE EXCEPTION 'Session does not exists!';
-        END IF;
-    END LOOP;
+   SELECT resigned_date
+   FROM Employees
+   WHERE eid = managerId
+   INTO resignedDate;
+ 
+IF (resignedDate IS NOT NULL && resignedDate < meetingDate) THEN
+   WHILE startHour != endHour LOOP
+       IF (EXISTS (SELECT 1 FROM Sessions s WHERE s.room = roomNumber AND s.floor = floorNumber AND s.time = startHour AND s.date = meetingDate)) THEN
+           IF EXISTS (SELECT 1 FROM Approves a WHERE a.room = roomNumber AND a.floor = floorNumber AND a.time = startHour AND a.date = meetingDate) THEN
+               RAISE EXCEPTION 'Meeting already approved';
+           ELSE
+               INSERT INTO Approves (eid, room, floor, time, date)
+               VALUES (managerId, roomNumber,floorNumber,startHour,meetingDate);
+           END IF;
+        
+           IF startHour = 23 THEN
+               startHour := 0;
+           ELSE
+               startHour := startHour + 1;
+           END IF;
+       ELSE
+           RAISE EXCEPTION 'Session does not exists!';
+       END IF;
+   END LOOP;
+ELSE
+   RAISE EXCEPTION 'Resigned employees cannot approve meetings';
+END IF;
 END;
 $$ LANGUAGE plpgsql;
+
 
 --Health Functionalities
 
 --1. declare_health
 DROP FUNCTION IF EXISTS declare_health;
-CREATE OR REPLACE FUNCTION declare_health(id INTEGER, date1 DATE, temperature FLOAT(3)) 
-RETURNS BOOLEAN 
-AS $$
+CREATE OR REPLACE FUNCTION declare_health(id INTEGER, date1 DATE, temperature FLOAT(3)) RETURNS BOOLEAN AS $$
 BEGIN
-    INSERT INTO Health_Declaration(eid,date,temp) VALUES (id, date1, temperature);
-    UPDATE Health_Declaration SET fever = TRUE WHERE temp > 37.5 AND eid=id AND date=date1 AND temp= temperature;
-    UPDATE Health_Declaration SET fever = FALSE WHERE temp <= 37.5 AND eid=id AND date=date1 AND temp= temperature;   
-    RETURN fever FROM Health_Declaration WHERE eid=id AND date=date1 AND temp= temperature;
+ IF date1 > CURRENT_DATE THEN
+  RAISE EXCEPTION 'You cannot make a future health declaration';
+ ELSE
+  INSERT INTO Health_Declaration(eid,date,temp) VALUES (id, date1, temperature);
+  UPDATE Health_Declaration SET fever = TRUE WHERE temp > 37.5 AND eid=id AND date=date1 AND temp= temperature;
+  UPDATE Health_Declaration SET fever = FALSE WHERE temp <= 37.5 AND eid=id AND date=date1 AND temp= temperature;   
+  RETURN fever FROM Health_Declaration WHERE eid=id AND date=date1 AND temp= temperature;
+ END IF;
 END;
 $$ LANGUAGE plpgsql;
 
 --2. contact_tracing
 DROP FUNCTION IF EXISTS contact_tracing;
 CREATE OR REPLACE FUNCTION contact_tracing(id INTEGER)
-RETURNS TABLE (contact_id INTEGER) 
-AS $$
-    DECLARE
-    curs CURSOR FOR (SELECT DISTINCT j1.eid FROM (
-                        (Joins j JOIN Approves a
-                            ON j.room = a.room 
-                            AND j.floor = a.floor 
-                            AND j.time = a.time 
-                            AND j.date = a.date 
-                            AND j.eid = id)
-                        JOIN Joins j1
-                        ON  j1.room = a.room 
-                        AND j1.floor = a.floor 
-                        AND j1.time = a.time 
-                        AND j1.date = a.date)
-    WHERE j1.date BETWEEN CURRENT_DATE - INTERVAL '3 DAYS'AND CURRENT_DATE);
-    r1 RECORD;
+RETURNS TABLE (contact_id INTEGER) AS $$
+DECLARE
+ efever BOOLEAN:= (SELECT fever FROM Health_Declaration h WHERE h.eid= id ORDER BY date DESC LIMIT 1);
+ ddate DATE:= (SELECT date FROM Health_Declaration h WHERE h.eid= id ORDER BY date DESC LIMIT 1);
+ curs CURSOR FOR (SELECT DISTINCT j1.eid FROM ((Joins j JOIN Approves a
+ON j.room = a.room AND j.floor = a.floor AND j.time = a.time AND j.date = a.date AND j.eid = id) JOIN Joins j1 ON  j1.room = a.room AND j1.floor = a.floor AND j1.time = a.time AND j1.date = a.date)
+WHERE j1.date
+BETWEEN ddate - INTERVAL '3 DAYS'
+AND ddate);
+ r1 RECORD;
+ roomNo INTEGER := -1;
+ floorNo INTEGER:= -1;
+ meetingTime INTEGER:= -1;
+ meetingDate DATE;
 BEGIN
-OPEN curs;
-LOOP
-    FETCH curs into r1;
-        EXIT WHEN NOT FOUND;
-        IF (r1.eid != id) THEN
-            contact_id := r1.eid;
-            RETURN NEXT;
-        END IF;
-END LOOP;
-CLOSE curs;
-RETURN;
+IF efever THEN
+       SELECT room, floor, time, date
+       INTO roomNo, floorNo, meetingTime, meetingDate
+       FROM Books
+       WHERE eid = id;
+       DELETE FROM Sessions s
+       WHERE s.room = roomNo
+       AND s.floor = floorNo
+       AND s.time = meetingTime
+       AND s.date >= ddate;
+      
+ 
+       OPEN curs;
+       LOOP
+       FETCH curs into r1;
+           EXIT WHEN NOT FOUND;
+           IF (r1.eid != id) THEN
+               contact_id := r1.eid;
+               DELETE FROM Joins jo
+               WHERE jo.eid = contact_id AND jo.date
+               BETWEEN ddate AND ddate + INTERVAL '7 DAYS';
+               RETURN NEXT;
+           END IF;
+       END LOOP;
+       CLOSE curs;
+       RETURN;
+   END IF;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -506,7 +572,9 @@ CREATE OR REPLACE FUNCTION check_if_approved() RETURNS TRIGGER
 AS $$
 DECLARE
     managerEid INT := -1;
+    resignedDate DATE := NULL;
 BEGIN
+
     IF (TG_OP = 'DELETE') THEN
         SELECT eid
         FROM Approves
@@ -516,9 +584,18 @@ BEGIN
         AND time = OLD.time
         INTO managerEid;
       
+        SELECT resigned_date
+        FROM Employees
+        WHERE eid = OLD.eid
+        INTO resignedDate; 
+
         IF (managerEid != -1) THEN
-        RAISE EXCEPTION 'Cannot join or leave approved meeting';
-            RETURN NULL;
+            IF (resignedDate IS NOT NULL) THEN
+                RETURN OLD;
+            ELSE 
+                RAISE EXCEPTION 'Cannot join or leave approved meeting';
+                RETURN NULL;
+            END IF;
         ELSE
             RETURN OLD;
         END IF;
@@ -530,17 +607,27 @@ BEGIN
         AND date = NEW.date
         AND time = NEW.time
         INTO managerEid;
+
+        SELECT resigned_date
+        FROM Employees
+        WHERE eid = NEW.eid
+        INTO resignedDate; 
       
         IF (managerEid != -1) THEN
-            RAISE EXCEPTION 'Cannot join or leave approved meeting';
-            RETURN NULL;
+            IF (resignedDate IS NOT NULL) THEN
+                RETURN NEW;
+            ELSE 
+                RAISE EXCEPTION 'Cannot join or leave approved meeting';
+                RETURN NULL;
+            END IF;
         ELSE
             RETURN NEW;
         END IF;
     END IF;
 END;
 $$ LANGUAGE plpgsql;
- 
+
+DROP TRIGGER IF EXISTS check_if_approved ON Joins; 
 CREATE TRIGGER check_if_approved
 BEFORE INSERT OR UPDATE OR DELETE ON Joins
 FOR EACH ROW EXECUTE FUNCTION check_if_approved();
@@ -892,3 +979,28 @@ CREATE TRIGGER remove_close_contacts
 BEFORE INSERT OR UPDATE ON Health_Declaration
 FOR EACH ROW WHEN (NEW.fever = TRUE)
 EXECUTE FUNCTION  remove_close_contacts();
+
+CREATE OR REPLACE FUNCTION removed_resigned_meetings() RETURNS TRIGGER 
+AS $$
+DECLARE
+  resignedDate DATE := NULL;
+BEGIN
+    SELECT resigned_date
+    FROM Employees
+    WHERE eid = NEW.eid
+    INTO resignedDate;
+  
+    IF (resignedDate IS NOT NULL) THEN 
+        DELETE FROM Joins
+        WHERE eid = NEW.eid
+        AND date > resignedDate;
+    END IF;
+
+    RETURN NEW; 
+END;
+$$ LANGUAGE plpgsql;
+ 
+DROP TRIGGER IF EXISTS removed_resigned_meetings ON Employees;
+CREATE TRIGGER removed_resigned_meetings
+AFTER UPDATE ON Employees
+FOR EACH ROW EXECUTE FUNCTION removed_resigned_meetings();
