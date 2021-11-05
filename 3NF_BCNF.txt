@@ -1,0 +1,48 @@
+// 3NF
+Employees(eid, ename, email, contact, resigned_date)
+eid -> ename, email, contact, resigned_date
+email -> eid, ename, contact, resigned_date
+contact -> eid, ename, email, resigned_date
+
+
+Departments(did, dname)
+did -> dname
+
+
+Meeting_Rooms(room, floor, name)
+room, floor -> name
+
+
+Sessions(room, floor, time, date)
+{ room, floor, time, date }
+
+
+Works_In(eid, did)
+eid -> did
+
+
+Located_In(room, floor, did)
+room, floor -> did
+
+
+Joins(eid, room, floor, time, date)
+eid, time, date -> room, floor
+
+
+Books(eid, room, floor, time, date)
+eid, time, date -> room, floor
+room, floor, time, date -> eid
+
+
+Approves(eid, room, floor, time, date)
+room, floor, time, date -> eid
+
+
+Updates(date, new_cap, room, floor, eid)
+date, room, floor, eid -> new_cap
+
+
+// NOT 3NF
+Health_Declaration(eid, date, temp, fever)
+eid, date -> temp, fever
+temp -> fever

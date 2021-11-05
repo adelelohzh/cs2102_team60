@@ -339,12 +339,20 @@ BEGIN
                     AND j.time = startHour 
                     AND j.date = meetingDate 
                     AND j.eid = employeeId)) THEN
-            DELETE FROM Joins j1
-            WHERE j1.room = roomNumber
-            AND j1.floor = floorNumber
-            AND j1.date = meetingDate
-            AND j1.time = startHour
-            AND j1.eid = employeeId;
+                IF NOT (EXISTS (SELECT 1 FROM Approves a 
+                    WHERE a.room = roomNumber 
+                    AND a.floor = floorNumber 
+                    AND a.time = startHour 
+                    AND a.date = meetingDate)) THEN
+                        DELETE FROM Joins j1
+                        WHERE j1.room = roomNumber
+                        AND j1.floor = floorNumber
+                        AND j1.date = meetingDate
+                        AND j1.time = startHour
+                        AND j1.eid = employeeId;
+                ELSE
+                    RAISE EXCEPTION 'Cannot leave approved meeting!';
+                END IF;
         ELSE
             RAISE EXCEPTION 'You are not in this meeting';
         END IF;
@@ -574,62 +582,35 @@ DECLARE
     managerEid INT := -1;
     resignedDate DATE := NULL;
 BEGIN
+    SELECT eid
+    FROM Approves
+    WHERE room = NEW.room
+    AND floor = NEW.floor
+    AND date = NEW.date
+    AND time = NEW.time
+    INTO managerEid;
 
-    IF (TG_OP = 'DELETE') THEN
-        SELECT eid
-        FROM Approves
-        WHERE room = OLD.room
-        AND floor = OLD.floor
-        AND date = OLD.date
-        AND time = OLD.time
-        INTO managerEid;
-      
-        SELECT resigned_date
-        FROM Employees
-        WHERE eid = OLD.eid
-        INTO resignedDate; 
-
-        IF (managerEid != -1) THEN
-            IF (resignedDate IS NOT NULL) THEN
-                RETURN OLD;
-            ELSE 
-                RAISE EXCEPTION 'Cannot join or leave approved meeting';
-                RETURN NULL;
-            END IF;
-        ELSE
-            RETURN OLD;
+    SELECT resigned_date
+    FROM Employees
+    WHERE eid = NEW.eid
+    INTO resignedDate; 
+  
+    IF (managerEid != -1) THEN
+        IF (resignedDate IS NOT NULL) THEN
+            RETURN NEW;
+        ELSE 
+            RAISE EXCEPTION 'Cannot join or leave approved meeting';
+            RETURN NULL;
         END IF;
     ELSE
-        SELECT eid
-        FROM Approves
-        WHERE room = NEW.room
-        AND floor = NEW.floor
-        AND date = NEW.date
-        AND time = NEW.time
-        INTO managerEid;
-
-        SELECT resigned_date
-        FROM Employees
-        WHERE eid = NEW.eid
-        INTO resignedDate; 
-      
-        IF (managerEid != -1) THEN
-            IF (resignedDate IS NOT NULL) THEN
-                RETURN NEW;
-            ELSE 
-                RAISE EXCEPTION 'Cannot join or leave approved meeting';
-                RETURN NULL;
-            END IF;
-        ELSE
-            RETURN NEW;
-        END IF;
+        RETURN NEW;
     END IF;
 END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS check_if_approved ON Joins; 
 CREATE TRIGGER check_if_approved
-BEFORE INSERT OR UPDATE OR DELETE ON Joins
+BEFORE INSERT OR UPDATE ON Joins
 FOR EACH ROW EXECUTE FUNCTION check_if_approved();
 
 
@@ -676,28 +657,38 @@ FOR EACH ROW EXECUTE FUNCTION check_did();
 -- Remove all bookings
 CREATE OR REPLACE FUNCTION remove_all_bookings() RETURNS TRIGGER 
 AS $$
+DECLARE
+    curs CURSOR FOR (SELECT * FROM Sessions WHERE room = NEW.room AND floor = NEW.floor AND date > NEW.date);
+    r1 RECORD;
+    capacity INT;
 BEGIN
-    DELETE FROM Sessions
-    WHERE room = NEW.room
-    AND floor = NEW.floor
-    AND date > NEW.date;
+    OPEN curs;
 
-    DELETE FROM Joins
-    WHERE room = NEW.room
-    AND floor = NEW.floor
-    AND date > NEW.date;
+    LOOP
+        FETCH curs into r1;
+        EXIT WHEN NOT FOUND;
+        SELECT COUNT(*)
+        FROM Joins
+        WHERE room = r1.room
+        AND floor = r1.floor
+        AND date = r1.date
+        AND time = r1.time
+        INTO capacity;
 
-    DELETE FROM Approves
-    WHERE room = NEW.room
-    AND floor = NEW.floor
-    AND date > NEW.date;
-
-    RETURN NEW;
+        IF (capacity > NEW.new_cap) THEN
+            DELETE FROM Sessions
+            WHERE room = r1.room
+            AND floor = r1.floor
+            AND date = r1.date
+            AND time = r1.time
+        END IF;
+    END LOOP;
+    CLOSE curs;
 END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS remove_all_bookings ON Updates;
-CREATE TRIGGER remove_all_bookings  
+CREATE TRIGGER remove_all_bookings
 BEFORE UPDATE ON Updates
 FOR EACH ROW EXECUTE FUNCTION remove_all_bookings();
 
@@ -796,33 +787,6 @@ FOR EACH ROW
 EXECUTE FUNCTION check_if_full();
 
 
---Check if health declaration has fever
-CREATE OR REPLACE FUNCTION check_if_fever() RETURNS TRIGGER 
-AS $$
-DECLARE
-    hasFever BOOLEAN := false;
-BEGIN
-    SELECT fever
-    FROM Health_Declaration
-    WHERE eid = NEW.eid
-    AND date = NEW.date
-    INTO hasFever;
- 
-    IF (hasFever) THEN 
-        RAISE EXCEPTION 'You cannot join a meeting with a fever';
-        RETURN NULL;
-    ELSE
-        RETURN NEW;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
- 
-DROP TRIGGER IF EXISTS check_if_fever ON Joins;
-CREATE TRIGGER check_if_fever
-BEFORE INSERT OR UPDATE ON Joins
-FOR EACH ROW EXECUTE FUNCTION check_if_fever();
-
-
 --Check same department
 CREATE OR REPLACE FUNCTION check_same_department() RETURNS TRIGGER 
 AS $$
@@ -851,42 +815,6 @@ DROP TRIGGER IF EXISTS check_same_department ON Approves;
 CREATE TRIGGER check_same_department
 BEFORE INSERT ON Approves
 FOR EACH ROW EXECUTE FUNCTION check_same_department();
-
-
---Check if employee is resigned 
-CREATE OR REPLACE FUNCTION check_if_resigned() RETURNS TRIGGER 
-AS $$
-DECLARE
-    resignedDate DATE := NULL;
-BEGIN
-    SELECT resigned_date
-    FROM Employees
-    WHERE eid = NEW.eid
-    INTO resignedDate;
- 
-    IF (resignedDate IS NOT NULL) THEN 
-        RAISE EXCEPTION 'Resigned Employees cannot join/book/approve meetings!';
-        RETURN NULL;
-    ELSE
-        RETURN NEW;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
- 
-DROP TRIGGER IF EXISTS check_if_resigned ON Joins;
-CREATE TRIGGER check_if_resigned
-BEFORE INSERT OR UPDATE ON Joins
-FOR EACH ROW EXECUTE FUNCTION check_if_resigned();
- 
-DROP TRIGGER IF EXISTS check_if_resigned ON Books;
-CREATE TRIGGER check_if_resigned
-BEFORE INSERT ON Books
-FOR EACH ROW EXECUTE FUNCTION check_if_resigned();
- 
-DROP TRIGGER IF EXISTS check_if_resigned ON Approves;
-CREATE TRIGGER check_if_resigned
-BEFORE INSERT ON Approves
-FOR EACH ROW EXECUTE FUNCTION check_if_resigned();
 
 
 -- Check non-compliance
@@ -923,6 +851,7 @@ CREATE TRIGGER check_non_compliance
 BEFORE INSERT OR UPDATE ON Approves
 FOR EACH ROW EXECUTE FUNCTION check_non_compliance();
 
+
 -- Check existing department
 CREATE OR REPLACE FUNCTION check_existing_department() RETURNS TRIGGER
 AS $$
@@ -936,6 +865,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
+-- Remove employee from meetings after resign date
 CREATE OR REPLACE FUNCTION removed_resigned_meetings() RETURNS TRIGGER 
 AS $$
 DECLARE
