@@ -936,50 +936,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
-CREATE OR REPLACE FUNCTION remove_booking() RETURNS TRIGGER
-AS $$
-DECLARE
-  roomNo INTEGER := -1;
-  floorNo INTEGER:= -1;
-  meetingTime INTEGER:= -1;
-  meetingDate DATE;
-BEGIN
-  SELECT room, floor, time, date
-INTO roomNo, floorNo, meetingTime, meetingDate
-FROM Books
-WHERE eid = NEW.eid;
-  DELETE FROM Sessions s
-WHERE s.room = roomNo
-AND s.floor = floorNo
-AND s.time = meetingTime
-AND s.date >= CURRENT_DATE;
-RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS remove_booking ON Health_Declaration;
-CREATE TRIGGER remove_booking
-BEFORE INSERT OR UPDATE ON Health_Declaration
-FOR EACH ROW WHEN (NEW.fever = TRUE)
-EXECUTE FUNCTION remove_booking();
-
-
-CREATE OR REPLACE FUNCTION remove_close_contacts() RETURNS TRIGGER AS $$
-BEGIN
-      DELETE FROM Joins jo
-WHERE jo.eid IN (SELECT * FROM contact_tracing(NEW.eid)) AND jo.date
-BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 DAYS';
-RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS remove_close_contacts ON Health_Declaration;
-CREATE TRIGGER remove_close_contacts
-BEFORE INSERT OR UPDATE ON Health_Declaration
-FOR EACH ROW WHEN (NEW.fever = TRUE)
-EXECUTE FUNCTION  remove_close_contacts();
-
 CREATE OR REPLACE FUNCTION removed_resigned_meetings() RETURNS TRIGGER 
 AS $$
 DECLARE
