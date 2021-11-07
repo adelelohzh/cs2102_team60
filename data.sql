@@ -158,6 +158,7 @@ INSERT INTO Sessions (room, floor, time, date) VALUES
 (1, 1, 9, '2021-11-10'),
 (1, 1, 10, '2021-11-10'),
 (3, 1, 9, '2021-11-11'),
+(1, 1, 13, '2021-11-12'),
 (1, 2, 13, '2021-11-12'),
 (3, 3, 13, '2021-12-16'),
 (3, 3, 14, '2021-12-16'),
@@ -458,11 +459,12 @@ VALUES
 (69, '2021-11-11', 37.4, FALSE);
 -- 70 - 80 non-compliance
 
---Books (11)
+--Books (12)
 INSERT INTO Books(eid, room, floor, time, date) VALUES 
 (1, 1, 1, 9, '2021-11-10'),
 (2, 1, 1, 10, '2021-11-10'),
 (3, 3, 1, 9, '2021-11-11'),
+(1, 1, 1, 13, '2021-11-12'),
 (11, 1, 2, 13, '2021-11-12'),
 (21, 3, 3, 13, '2021-12-16'),
 (32, 3, 3, 14, '2021-12-16'),
@@ -490,6 +492,13 @@ INSERT INTO Joins(eid, room, floor, time, date) VALUES (33, 3, 1, 9, '2021-11-11
 INSERT INTO Joins(eid, room, floor, time, date) VALUES (34, 3, 1, 9, '2021-11-11');
 INSERT INTO Joins(eid, room, floor, time, date) VALUES (35, 3, 1, 9, '2021-11-11');
 INSERT INTO Joins(eid, room, floor, time, date) VALUES (36, 3, 1, 9, '2021-11-11');
+
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (1, 1, 1, 13, '2021-11-12');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (2, 1, 1, 13, '2021-11-12');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (3, 1, 1, 13, '2021-11-12');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (4, 1, 1, 13, '2021-11-12');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (7, 1, 1, 13, '2021-11-12');
+INSERT INTO Joins(eid, room, floor, time, date) VALUES (8, 1, 1, 13, '2021-11-12');
  
 INSERT INTO Joins(eid, room, floor, time, date) VALUES (11, 1, 2, 13, '2021-11-12');
 INSERT INTO Joins(eid, room, floor, time, date) VALUES (17, 1, 2, 13, '2021-11-12');
@@ -530,15 +539,15 @@ INSERT INTO Joins(eid, room, floor, time, date) VALUES (71, 3, 8, 9, '2021-12-26
 INSERT INTO Joins(eid, room, floor, time, date) VALUES (19, 3, 8, 9, '2021-12-26');
 INSERT INTO Joins(eid, room, floor, time, date) VALUES (63, 3, 8, 9, '2021-12-26');
 
---Approves (First 10 Books)
+--Approves (First 10)
 INSERT INTO Approves(eid, room, floor, time, date) VALUES 
 (1, 1, 1, 9, '2021-11-10'),
 (2, 1, 1, 10, '2021-11-10'),
 (3, 3, 1, 9, '2021-11-11'),
+(1, 1, 1, 13, '2021-11-12'),
 (11, 1, 2, 13, '2021-11-12'),
 (21, 3, 3, 13, '2021-12-16'),
 (32, 3, 3, 14, '2021-12-16'),
 (33, 2, 4, 11, '2021-12-23'),
 (43, 3, 5, 9, '2021-12-24'),
-(52, 2, 6, 9, '2021-12-25'),
-(61, 1, 1, 9, '2021-12-25');
+(52, 2, 6, 9, '2021-12-25');
