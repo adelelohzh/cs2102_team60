@@ -655,27 +655,25 @@ FOR EACH ROW EXECUTE FUNCTION remove_all_bookings();
 
 
 --Check today date
-CREATE OR REPLACE FUNCTION check_today_date() RETURNS TRIGGER 
+CREATE OR REPLACE FUNCTION check_today_date() RETURNS TRIGGER
 AS $$
 DECLARE
     today DATE;
     today_hour INT;
 BEGIN
     SELECT current_date INTO today;
-    RAISE notice 'Value: %', today;
     IF today < NEW.date THEN
         RETURN NEW;
     ELSIF (today = NEW.date) THEN
         SELECT CAST((SELECT TO_CHAR(now(), 'HH24')) AS INTEGER) INTO today_hour;
-        RAISE notice 'Value: %', today_hour;
         IF today_hour >= NEW.time THEN
-            RAISE EXCEPTION 'You can only make future bookings';
+            RAISE EXCEPTION 'You can only make/approve future bookings';
             RETURN NULL;
         ELSE
             RETURN NEW;
         END IF;
     ELSE
-        RAISE EXCEPTION 'You can only make future bookings';
+        RAISE EXCEPTION 'You can only make/approve future bookings';
         RETURN NULL;
     END IF;
 END;
@@ -684,6 +682,11 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS check_today_date ON Sessions;
 CREATE TRIGGER check_today_date
 BEFORE INSERT ON Sessions
+FOR EACH ROW EXECUTE FUNCTION check_today_date();
+
+DROP TRIGGER IF EXISTS check_today_date ON Approves;
+CREATE TRIGGER check_today_date
+BEFORE INSERT ON Approves
 FOR EACH ROW EXECUTE FUNCTION check_today_date();
 
 
