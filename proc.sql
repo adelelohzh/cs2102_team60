@@ -455,8 +455,12 @@ IF efever THEN
        AND s.floor = floorNo
        AND s.time = meetingTime
        AND s.date >= ddate;
-      
- 
+       
+       DELETE FROM Joins j 
+       WHERE j.eid=id 
+       AND j.date BETWEEN ddate 
+       AND ddate + INTERVAL '7 DAYS';
+
        OPEN curs;
        LOOP
        FETCH curs into r1;
