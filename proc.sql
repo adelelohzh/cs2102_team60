@@ -15,21 +15,6 @@ BEGIN
    END IF;
 END;
 $$ LANGUAGE plpgsql;
- 
-CREATE OR REPLACE FUNCTION check_did() RETURNS TRIGGER AS $$
-BEGIN
-   IF EXISTS (SELECT 1 FROM Departments WHERE did = NEW.did) THEN
-       RAISE EXCEPTION 'Department ID already exists!';
-       RETURN NULL;
-   ELSE
-       RETURN NEW;
-   END IF;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER check_did
-BEFORE INSERT ON Departments
-FOR EACH ROW EXECUTE FUNCTION check_did();
 
 --2. remove_department
 DROP PROCEDURE IF EXISTS remove_department;
@@ -48,7 +33,7 @@ $$ LANGUAGE plpgsql;
 
 --3. add_room
 DROP PROCEDURE IF EXISTS add_room;
-CREATE OR REPLACE PROCEDURE add_room(floorNumber INTEGER, roomNumber INTEGER, roomName VARCHAR(10), roomCapacity INTEGER, managerEid INTEGER)
+CREATE OR REPLACE PROCEDURE add_room(roomNumber INTEGER, floorNumber INTEGER, roomName VARCHAR(10), roomCapacity INTEGER, managerEid INTEGER)
 AS $$
 BEGIN
     IF (SELECT EXISTS (SELECT 1 FROM Meeting_Rooms m WHERE m.floor = floorNumber AND m.room = roomNumber)) THEN
@@ -67,7 +52,7 @@ $$ LANGUAGE plpgsql;
 
 --4. change_capacity
 DROP PROCEDURE IF EXISTS change_capacity;
-CREATE OR REPLACE PROCEDURE change_capacity(floorNumber INTEGER, roomNumber INTEGER, capacity INTEGER, managerEid INTEGER)
+CREATE OR REPLACE PROCEDURE change_capacity(roomNumber INTEGER, floorNumber INTEGER, capacity INTEGER, managerEid INTEGER)
 AS $$
 BEGIN
    IF (SELECT EXISTS(SELECT 1 FROM Manager WHERE eid = managerEid)) THEN
@@ -87,7 +72,7 @@ $$ LANGUAGE plpgsql;
 
 --5. add_employee
 DROP PROCEDURE IF EXISTS add_employee;
-CREATE OR REPLACE PROCEDURE add_employee(ename TEXT, contact VARCHAR(100), kind TEXT, did INT)
+CREATE OR REPLACE PROCEDURE add_employee(ename TEXT, contact VARCHAR(100), kind TEXT, department_id INT)
 AS $$
 DECLARE
     employee_id INT := 0;
@@ -102,8 +87,12 @@ BEGIN
     employee_id := employee_id + 1;
     newEmail := ename || employee_id || '@cscompany.com';
 
-    INSERT INTO Employees (eid, ename, email, contact, resigned_date)
-    VALUES (employee_id, ename, newEmail, contact, NULL);
+    IF EXISTS(SELECT 1 FROM Departments d WHERE d.did = department_id) THEN
+        INSERT INTO Employees (eid, ename, email, contact, resigned_date)
+        VALUES (employee_id, ename, newEmail, contact, NULL);
+    ELSE
+        RAISE EXCEPTION 'Department ID does not exist';
+    END IF;
 
     SELECT eid
     FROM Employees
@@ -111,18 +100,22 @@ BEGIN
     LIMIT 1
     INTO employee_id;
  
-    IF (kind = 'junior') THEN
+    IF (LOWER(kind) = 'junior') THEN
         INSERT INTO Junior(eid) VALUES (employee_id);
-    ELSIF (kind = 'senior') THEN
+    ELSIF (LOWER(kind) = 'senior') THEN
         INSERT INTO Booker(eid) VALUES (employee_id);
         INSERT INTO Senior(eid) VALUES (employee_id);
  
-    ELSIF (kind = 'manager') THEN
+    ELSIF (LOWER(kind) = 'manager') THEN
         INSERT INTO Booker(eid) VALUES (employee_id);
         INSERT INTO Manager(eid) VALUES (employee_id); 
     ELSE
+        DELETE FROM Employees WHERE eid = employee_id;
         RAISE EXCEPTION 'Invalid kind (junior, senior, manager)';
     END IF;
+
+    INSERT INTO Works_In VALUES (employee_id, department_id);
+
 END;
 $$ LANGUAGE plpgsql;
 
@@ -132,10 +125,12 @@ CREATE OR REPLACE PROCEDURE remove_employee
     (IN employee_id INTEGER, newDate DATE)
 AS $$
 BEGIN
-    IF (SELECT EXISTS (SELECT 1 FROM Employees e WHERE e.eid = employee_id)) THEN
+    IF EXISTS (SELECT 1 FROM Employees e WHERE e.eid = employee_id AND e.resigned_date IS NULL) THEN
         UPDATE Employees
         SET resigned_date = newDate
         WHERE eid = employee_id;
+    ELSIF EXISTS (SELECT 1 FROM Employees e WHERE e.eid = employee_id AND e.resigned_date IS NOT NULL) THEN
+        RAISE EXCEPTION 'Employee already resigned';
     ELSE
         RAISE EXCEPTION 'Employee does not exist';
     END IF;
@@ -202,12 +197,13 @@ BEGIN
                 ELSE
                     INSERT INTO Sessions(room, floor, time, date)
                     VALUES (room_num, floor_num, start_hour, book_date);
+
                     INSERT INTO Joins(eid, room, floor, time, date)
                     VALUES (booker_eid, room_num, floor_num, start_hour, book_date);
-                   RAISE notice 'Inserting into books';
+
                    INSERT INTO Books(eid, room, floor, time, date)
                    VALUES (booker_eid, room_num, floor_num, start_hour, book_date);
-                   RAISE notice 'Inserting into joins';
+
                    INSERT INTO Joins(eid, room, floor, time, date)
                    VALUES (booker_eid, room_num, floor_num, start_hour, book_date);
                 END IF;
@@ -223,10 +219,10 @@ BEGIN
             ELSE
                 INSERT INTO Sessions(room, floor, time, date)
                 VALUES (room_num, floor_num, start_hour, book_date);
-                RAISE notice 'Inserting into books';
+
                 INSERT INTO Books(eid, room, floor, time, date)
                 VALUES (booker_eid, room_num, floor_num, start_hour, book_date);
-                RAISE notice 'Inserting into joins';
+
                 INSERT INTO Joins(eid, room, floor, time, date)
                 VALUES (booker_eid, room_num, floor_num, start_hour, book_date);
             END IF;
@@ -260,7 +256,7 @@ CREATE OR REPLACE PROCEDURE join_meeting(
     floorNumber INTEGER, 
     roomNumber INTEGER, 
     meetingDate DATE, 
-    startHour INTEGER, 
+    startHour INTEGER,
     endHour INTEGER, 
     employeeId INTEGER) 
 AS $$
@@ -274,7 +270,7 @@ BEGIN
         ELSIF (EXISTS (SELECT 1 FROM Sessions s WHERE s.room = roomNumber AND s.floor = floorNumber AND s.time = startHour AND s.date = meetingDate)) THEN
             INSERT INTO Joins(eid,room,floor,time,date) VALUES (employeeId, roomNumber, floorNumber, startHour, meetingDate);
         ELSE
-            RAISE EXCEPTION 'Session does not exists!';
+            RAISE EXCEPTION 'Session does not exist!';
         END IF;
       
         IF startHour = 23 THEN
@@ -369,24 +365,6 @@ BEGIN
     RETURN fever FROM Health_Declaration WHERE eid=id AND date=date1 AND temp= temperature;
 END;
 $$ LANGUAGE plpgsql;
- 
-DROP TRIGGER IF EXISTS add_health;
-CREATE OR REPLACE FUNCTION add_health() RETURNS TRIGGER 
-AS $$
-BEGIN
-    IF NEW.date IN (SELECT date FROM Health_Declaration WHERE eid=NEW.eid) THEN
-        DELETE FROM Health_Declaration WHERE date=NEW.date AND eid=NEW.eid;
-        INSERT INTO Health_Declaration VALUES (NEW.eid, NEW.date, NEW.temp);
-        UPDATE Health_Declaration SET fever = TRUE WHERE NEW.temp > 37.5 AND eid=NEW.eid AND date=NEW.date AND temp= NEW.temp;
-        UPDATE Health_Declaration SET fever = FALSE WHERE NEW.temp <= 37.5 AND eid=NEW.eid AND date=NEW.date AND temp= NEW.temp;
-        RETURN NULL;
-    ELSE
-        RETURN NEW;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
-CREATE TRIGGER add_health BEFORE INSERT ON Health_Declaration FOR EACH ROW EXECUTE FUNCTION add_health();
-
 
 --2. contact_tracing
 DROP FUNCTION IF EXISTS contact_tracing;
@@ -422,7 +400,6 @@ CLOSE curs;
 RETURN;
 END;
 $$ LANGUAGE plpgsql;
-
 
 --Admin Functionalities
 
@@ -524,30 +501,71 @@ $$ LANGUAGE plpgsql;
 
 -- Triggers
 
---Remove all bookings after capacity change
+-- Add Health Declaration
+CREATE OR REPLACE FUNCTION add_health() RETURNS TRIGGER 
+AS $$
+BEGIN
+    IF NEW.date IN (SELECT date FROM Health_Declaration WHERE eid=NEW.eid) THEN
+        DELETE FROM Health_Declaration WHERE date=NEW.date AND eid=NEW.eid;
+        INSERT INTO Health_Declaration VALUES (NEW.eid, NEW.date, NEW.temp);
+        UPDATE Health_Declaration SET fever = TRUE WHERE NEW.temp > 37.5 AND eid=NEW.eid AND date=NEW.date AND temp= NEW.temp;
+        UPDATE Health_Declaration SET fever = FALSE WHERE NEW.temp <= 37.5 AND eid=NEW.eid AND date=NEW.date AND temp= NEW.temp;
+        RETURN NULL;
+    ELSE
+        RETURN NEW;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS add_health ON Health_Declaration;
+CREATE TRIGGER add_health
+BEFORE INSERT ON Health_Declaration 
+FOR EACH ROW EXECUTE FUNCTION add_health();
+
+
+-- Check department id
+CREATE OR REPLACE FUNCTION check_did() RETURNS TRIGGER AS $$
+BEGIN
+   IF EXISTS (SELECT 1 FROM Departments WHERE did = NEW.did) THEN
+       RAISE EXCEPTION 'Department ID already exists!';
+       RETURN NULL;
+   ELSE
+       RETURN NEW;
+   END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS check_did ON Departments;
+CREATE TRIGGER check_did
+BEFORE INSERT ON Departments
+FOR EACH ROW EXECUTE FUNCTION check_did();
+
+
+-- Remove all bookings
 CREATE OR REPLACE FUNCTION remove_all_bookings() RETURNS TRIGGER 
 AS $$
 BEGIN
-    DELETE SESSIONS
+    DELETE FROM Sessions
     WHERE room = NEW.room
     AND floor = NEW.floor
-    AND date > NEW.date 
+    AND date > NEW.date;
 
-    DELETE JOINS
+    DELETE FROM Joins
     WHERE room = NEW.room
     AND floor = NEW.floor
-    AND date > NEW.date
+    AND date > NEW.date;
 
-    DELETE Approves
+    DELETE FROM Approves
     WHERE room = NEW.room
     AND floor = NEW.floor
-    AND date > NEW.date
+    AND date > NEW.date;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER remove_all_bookings()  
+DROP TRIGGER IF EXISTS remove_all_bookings ON Updates;
+CREATE TRIGGER remove_all_bookings  
 BEFORE UPDATE ON Updates
 FOR EACH ROW EXECUTE FUNCTION remove_all_bookings();
 
@@ -578,16 +596,12 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
- 
-CREATE TRIGGER check_date
+
+DROP TRIGGER IF EXISTS check_today_date ON Sessions;
+CREATE TRIGGER check_today_date
 BEFORE INSERT ON Sessions
 FOR EACH ROW EXECUTE FUNCTION check_today_date();
 
-
--- Check Department ID
-CREATE TRIGGER check_did
-BEFORE INSERT ON Departments
-FOR EACH ROW EXECUTE FUNCTION check_did();
 
 --Check if employee is a manager
 CREATE OR REPLACE FUNCTION check_if_manager() RETURNS TRIGGER 
@@ -602,10 +616,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS check_manager ON Updates;
 CREATE TRIGGER check_manager
 BEFORE INSERT ON Updates
 FOR EACH ROW EXECUTE FUNCTION check_if_manager();
  
+DROP TRIGGER IF EXISTS check_manager ON Updates;
 CREATE TRIGGER check_manager
 BEFORE INSERT ON Approves
 FOR EACH ROW EXECUTE FUNCTION check_if_manager();
@@ -641,55 +657,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
  
+DROP TRIGGER IF EXISTS check_if_full ON Joins;
 CREATE TRIGGER check_if_full
 BEFORE INSERT ON Joins
 FOR EACH ROW
 EXECUTE FUNCTION check_if_full();
-
-
---Check if booking is approved
-CREATE OR REPLACE FUNCTION check_if_approved() RETURNS TRIGGER 
-AS $$
-DECLARE
-    managerEid INT := -1;
-BEGIN
-    IF (TG_OP = 'DELETE') THEN
-        SELECT eid
-        FROM Approves
-        WHERE room = OLD.room
-        AND floor = OLD.floor
-        AND date = OLD.date
-        AND time = OLD.time
-        INTO managerEid;
-      
-        IF (managerEid != -1) THEN
-        RAISE EXCEPTION 'Cannot join or leave approved meeting';
-            RETURN NULL;
-        ELSE
-            RETURN OLD;
-        END IF;
-    ELSE
-        SELECT eid
-        FROM Approves
-        WHERE room = NEW.room
-        AND floor = NEW.floor
-        AND date = NEW.date
-        AND time = NEW.time
-        INTO managerEid;
-      
-        IF (managerEid != -1) THEN
-            RAISE EXCEPTION 'Cannot join or leave approved meeting';
-            RETURN NULL;
-        ELSE
-            RETURN NEW;
-        END IF;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
- 
-CREATE TRIGGER check_if_approved
-BEFORE INSERT OR UPDATE OR DELETE ON Joins
-FOR EACH ROW EXECUTE FUNCTION check_if_approved();
 
 
 --Check if health declaration has fever
@@ -713,6 +685,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
  
+DROP TRIGGER IF EXISTS check_if_fever ON Joins;
 CREATE TRIGGER check_if_fever
 BEFORE INSERT OR UPDATE ON Joins
 FOR EACH ROW EXECUTE FUNCTION check_if_fever();
@@ -742,8 +715,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER check_same_department()  
-BEFORE INSERT ON Approve
+DROP TRIGGER IF EXISTS check_same_department ON Approves;
+CREATE TRIGGER check_same_department
+BEFORE INSERT ON Approves
 FOR EACH ROW EXECUTE FUNCTION check_same_department();
 
 
@@ -767,59 +741,109 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
  
+DROP TRIGGER IF EXISTS check_if_resigned ON Joins;
 CREATE TRIGGER check_if_resigned
 BEFORE INSERT OR UPDATE ON Joins
 FOR EACH ROW EXECUTE FUNCTION check_if_resigned();
  
+DROP TRIGGER IF EXISTS check_if_resigned ON Books;
 CREATE TRIGGER check_if_resigned
 BEFORE INSERT ON Books
 FOR EACH ROW EXECUTE FUNCTION check_if_resigned();
  
+DROP TRIGGER IF EXISTS check_if_resigned ON Approves;
 CREATE TRIGGER check_if_resigned
 BEFORE INSERT ON Approves
 FOR EACH ROW EXECUTE FUNCTION check_if_resigned();
 
 
+-- Check non-compliance
 CREATE OR REPLACE FUNCTION check_non_compliance() RETURNS TRIGGER 
 AS $$
 DECLARE
     employeeId INT := -1;
 BEGIN
-    SELECT eid
-    FROM non_compliance()
-    WHERE eid = NEW.eid
+    SELECT id
+    FROM non_compliance(CURRENT_DATE, CURRENT_DATE)
+    WHERE id = NEW.eid
     INTO employeeId;
  
     IF (employeeId != -1) THEN
-RAISE EXCEPTION 'You must complete health declaration before joining/booking/approving a room!'
+RAISE EXCEPTION 'You must complete health declaration before joining/booking/approving a room!';
 ELSE
     RETURN NEW;
 END IF;
 END;
 $$ LANGUAGE plpgsql;
  
+DROP TRIGGER IF EXISTS check_non_compliance ON Joins;
 CREATE TRIGGER check_non_compliance
 BEFORE INSERT OR UPDATE ON Joins
 FOR EACH ROW EXECUTE FUNCTION check_non_compliance();
  
+DROP TRIGGER IF EXISTS check_non_compliance ON Books;
 CREATE TRIGGER check_non_compliance
 BEFORE INSERT OR UPDATE ON Books
 FOR EACH ROW EXECUTE FUNCTION check_non_compliance();
- 
+
+DROP TRIGGER IF EXISTS check_non_compliance ON Approves;
 CREATE TRIGGER check_non_compliance
 BEFORE INSERT OR UPDATE ON Approves
 FOR EACH ROW EXECUTE FUNCTION check_non_compliance();
 
-
-/*
-CREATE OR REPLACE FUNCTION check_if_closeContact() RETURNS TRIGGER AS $$
-DECLARE
+-- Check existing department
+CREATE OR REPLACE FUNCTION check_existing_department() RETURNS TRIGGER
+AS $$
 BEGIN
-    
+    IF EXISTS (SELECT 1 FROM Departments WHERE did = NEW.did) THEN
+       RETURN NEW;
+    ELSE
+       RAISE EXCEPTION 'Department ID does not exist!';
+       RETURN NULL;
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER check_if_closeContact()  
-BEFORE INSERT OR UPDATES ON Joins
-FOR EACH ROW EXECUTE FUNCTION check_if_closeContact();
-*/
+
+CREATE OR REPLACE FUNCTION remove_booking() RETURNS TRIGGER
+AS $$
+DECLARE
+  roomNo INTEGER := -1;
+  floorNo INTEGER:= -1;
+  meetingTime INTEGER:= -1;
+  meetingDate DATE;
+BEGIN
+  SELECT room, floor, time, date
+INTO roomNo, floorNo, meetingTime, meetingDate
+FROM Books
+WHERE eid = NEW.eid;
+  DELETE FROM Sessions s
+WHERE s.room = roomNo
+AND s.floor = floorNo
+AND s.time = meetingTime
+AND s.date >= CURRENT_DATE;
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS remove_booking ON Health_Declaration;
+CREATE TRIGGER remove_booking
+BEFORE INSERT OR UPDATE ON Health_Declaration
+FOR EACH ROW WHEN (NEW.fever = TRUE)
+EXECUTE FUNCTION remove_booking();
+
+
+CREATE OR REPLACE FUNCTION remove_close_contacts() RETURNS TRIGGER AS $$
+BEGIN
+      DELETE FROM Joins jo
+WHERE jo.eid IN (SELECT * FROM contact_tracing(NEW.eid)) AND jo.date
+BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 DAYS';
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS remove_close_contacts ON Health_Declaration;
+CREATE TRIGGER remove_close_contacts
+BEFORE INSERT OR UPDATE ON Health_Declaration
+FOR EACH ROW WHEN (NEW.fever = TRUE)
+EXECUTE FUNCTION  remove_close_contacts();
